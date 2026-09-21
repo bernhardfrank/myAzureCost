@@ -371,7 +371,7 @@
             ],
             "properties": {
                 "description": "The sender's email server secure ssl port to connect to",
-                "value": "[concat('\"', reference(resourceId('Microsoft.Communication/communicationServices', variables('communicationServicesName')), '2026-03-18').hostName, '\"')]",
+                "value": "[concat('\"', 'https://',reference(resourceId('Microsoft.Communication/communicationServices', variables('communicationServicesName')), '2026-03-18').hostName, '\"')]",
                 "isEncrypted": false
             }
         }
