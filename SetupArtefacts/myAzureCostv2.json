@@ -58,6 +58,17 @@
             "metadata": {
                 "description": "The culture info string e.g. 'de-DE' used for encoding .csv attached to email"
             }
+        },
+        "AASku": {
+            "type": "string",
+            "defaultValue": "Free",
+            "metadata": {
+                "description": "description"
+            },
+            "allowedValues": [
+                "Free",
+                "Basic"
+            ]
         }
     },
     "variables": {
@@ -100,7 +111,7 @@
             "properties": {
                 "disableLocalAuth": false,
                 "sku": {
-                    "name": "Basic"
+                    "name": "[parameters('AASku')]"
                 },
                 "encryption": {
                     "keySource": "Microsoft.Automation",
