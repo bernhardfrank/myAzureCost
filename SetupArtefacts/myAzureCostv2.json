@@ -72,21 +72,58 @@
         }
     },
     "variables": {
-        "automationAccountName": "aa-myazurecost",
+        "automationAccountName": "[concat('aa-myazurecost', substring(guid(resourceGroup().id), 0, 4))]",
         "emailServicesName": "mailsvc-myazurecost",
         "communicationServicesName": "[concat('cs-', variables('automationAccountName'), substring(uniqueString(subscription().subscriptionId), 0, 4))]",
+        "AAVariables": [
+            {
+                "name": "SubscriptionId",
+                "description": "Azure subscription Id",
+                "value": "[concat('\"',subscription().subscriptionId,'\"')]",
+                "isEncrypted": false
+            },
+            {
+                "name": "RecipientEmail",
+                "description": "The email address the consumption is sent to",
+                "value": "[concat('\"',parameters('RecipientEmail'),'\"')]",
+                "isEncrypted": false
+            },
+            {
+                "name": "SenderAddress",
+                "description": "The sender's email server address",
+                "value": "[concat('\"', reference(resourceId('Microsoft.Communication/EmailServices', parameters('emailServicesName')), '2026-03-18').fromSenderDomain, '\"')]",                
+                "isEncrypted": false
+            },
+            {
+                "name": "AcsEndpoint",
+                "description": "The sender's email server secure ssl port to connect to",
+                "value": "[concat('\"', reference(resourceId('Microsoft.Communication/communicationServices', parameters('communicationServiceName')), '2023-04-01').hostName, '\"')]",
+                "isEncrypted": false
+            },
+            {
+                "name": "CultureInfo",
+                "description": "The culture info string e.g. 'de-DE' used for encoding .csv attached to email",
+                "value": "[concat('\"',parameters('myAzureCostCultureInfo'),'\"')]",
+                "isEncrypted": false
+            },
+            {
+                "name": "LookbackDays",
+                "description": "The number of days to look back for consumption data",
+                "value": "7",
+                "isEncrypted": false
+            }
+        ],
         "AA": {
             "runbooks": [
                 {
                     "name": "RunBk_MyAzureCost",
-                    "url": "[concat(parameters('_artifactsLocation'), '/RunBk_MyAzureCost.ps1', parameters('_artifactsLocationSasToken'))]",
-                    "version": "2.0.0.0",
+                    "url": "[concat(parameters('_artifactsLocation'), 'RunBk_MyAzureCost.ps1', parameters('_artifactsLocationSasToken'))]",
+                    "version": "1.0.0.0",
                     "type": "PowerShell",
                     "description": "Runbook to gather azure consumption of the day.",
                     "linkedToSchedule": "daily"
                 }
             ],
-            "modules": [],
             "schedules": [
                 {
                     "name": "daily",
@@ -116,6 +153,91 @@
                 "encryption": {
                     "keySource": "Microsoft.Automation",
                     "identity": {}
+                }
+            }
+        },
+        {
+            "name": "[concat(variables('automationAccountName'), '/',variables('AAVariables')[copyIndex()].name)]",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2024-10-23",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts/', variables('automationAccountName'))]"
+            ],
+            "copy": {
+                "name": "variablescopy",
+                "count": "[length(variables('AAVariables'))]",
+                "mode": "Serial"
+            },
+            "properties": {
+                "description": "[variables('AAVariables')[copyIndex()].description]",
+                "value": "[variables('AAVariables')[copyIndex()].value]",
+                "isEncrypted": "[variables('AAVariables')[copyIndex()].isEncrypted]"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/schedules",
+            "apiVersion": "2024-10-23",
+            "name": "[concat(variables('automationAccountName'), '/',variables('AA').schedules[copyIndex()].name)]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "copy": {
+                "name": "schedulescopy",
+                "count": "[length(variables('AA').schedules)]"
+            },
+            "properties": {
+                "startTime": "[variables('AA').schedules[copyIndex()].startTime]",
+                "expiryTime": "[variables('AA').schedules[copyIndex()].expiryTime]",
+                "interval": "[variables('AA').schedules[copyIndex()].interval]",
+                "frequency": "[variables('AA').schedules[copyIndex()].frequency]",
+                "timeZone": "[variables('AA').schedules[copyIndex()].timeZone]"
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "apiVersion": "2024-10-23",
+            "name": "[concat(variables('automationAccountName'), '/RunBk_MyAzureCost')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "copy": {
+                "name": "runbooksLoop",
+                "count": "[length(variables('AA').runbooks)]"
+            },
+            "properties": {
+                "description": "[variables('AA').runbooks[copyIndex()].description]",
+                "runbookType": "[variables('AA').runbooks[copyIndex()].type]",
+                "logProgress": false,
+                "logVerbose": true,
+                "publishContentLink": {
+                    "uri": "[variables('AA').runbooks[copyIndex()].url]",
+                    "version": "[variables('AA').runbooks[copyIndex()].version]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
+            "apiVersion": "2024-10-23",
+            "name": "[concat(variables('automationAccountName'), '/',guid(concat(string(copyIndex()),parameters('baseTime')),variables('automationAccountName')))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "runbooksLoop",
+                "schedulescopy"
+            ],
+            "condition": "[not(empty(variables('AA').runbooks[copyIndex()].linkedToSchedule))]",
+            "copy": {
+                "name": "jobSchedules",
+                "count": "[length(variables('AA').runbooks)]"
+            },
+            "properties": {
+                "parameters": "[variables('AA').runbooks[copyIndex()].parameters]",
+                "runbook": {
+                    "name": "[variables('AA').runbooks[copyIndex()].name]"
+                },
+                "schedule": {
+                    "name": "[variables('AA').runbooks[copyIndex()].linkedToSchedule]"
                 }
             }
         },
@@ -213,66 +335,6 @@
             }
         },
         {
-            "type": "Microsoft.Automation/automationAccounts/jobs",
-            "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/60754b1f-3eec-42fb-bcb6-34b679d52d70')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbook": {
-                    "name": "RunBk_MyAzureCost"
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/jobSchedules",
-            "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/5c478ab8-df7a-4493-9f42-cacef8744523')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbook": {
-                    "name": "RunBk_MyAzureCost"
-                },
-                "schedule": {
-                    "name": "Daily-MyAzureCost"
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/RunBk_MyAzureCost')]",
-            "location": "westeurope",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "runbookType": "PowerShell",
-                "logVerbose": false,
-                "logProgress": false,
-                "logActivityTrace": 0
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/schedules",
-            "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/Daily-MyAzureCost')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "description": "Daily AzureCost Report",
-                "startTime": "[dateTimeAdd(utcNow('d'), 'P1DT9H30M')]",
-                "expiryTime": "9999-12-31T23:59:59.9999999+00:00",
-                "interval": 1,
-                "frequency": "Day",
-                "timeZone": "Etc/UTC"
-            }
-        },
-        {
             "type": "Microsoft.Communication/communicationServices",
             "apiVersion": "2026-03-18",
             "name": "[variables('communicationServicesName')]",
@@ -284,7 +346,7 @@
                 "type": "None"
             },
             "properties": {
-                "dataLocation": "[variables('datalocation')]",
+                "dataLocation": "[parameters('datalocation')]",
                 "linkedDomains": [
                     "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServicesName'), 'AzureManagedDomain')]"
                 ]

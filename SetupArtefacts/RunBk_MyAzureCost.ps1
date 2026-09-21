@@ -49,19 +49,19 @@
     Wird per Zeitplan mit Parametern gestartet (siehe Setup-MyAzureCost.ps1).
 #>
 
-param(
-    [Parameter(Mandatory = $true)]  [string]$SubscriptionId,
-    [Parameter(Mandatory = $true)]  [string]$AcsEndpoint,      # z.B. https://acs-xyz.europe.communication.azure.com
-    [Parameter(Mandatory = $true)]  [string]$SenderAddress,    # z.B. DoNotReply@xxxx.azurecomm.net
-    [Parameter(Mandatory = $true)]  [string]$RecipientEmail,
-    [Parameter(Mandatory = $false)] [string]$CultureName = "de-DE",
-    [Parameter(Mandatory = $false)] [string]$LookbackDays = "7"
-)
+# Get Azure Automation Variables (SubscriptionId, ACS Endpoint, Sender/Recipient, Culture, LookbackDays)
+[string]$SubscriptionId = Get-AutomationVariable -Name "SubscriptionId"
+[string]$AcsEndpoint = Get-AutomationVariable -Name "AcsEndpoint"
+[string]$SenderAddress = Get-AutomationVariable -Name "SenderAddress"
+[string]$RecipientEmail = Get-AutomationVariable -Name "RecipientEmail"
+[string]$CultureInfo = Get-AutomationVariable -Name "CultureInfo" 
+[string]$LookbackDays = Get-AutomationVariable -Name "LookbackDays"
+
 
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$Culture  = [System.Globalization.CultureInfo]::GetCultureInfo($CultureName)
+$Culture  = [System.Globalization.CultureInfo]::GetCultureInfo($CultureInfo)
 $Lookback = [int]$LookbackDays
 if ($Lookback -lt 2)  { $Lookback = 2 }
 if ($Lookback -gt 30) { $Lookback = 30 }
