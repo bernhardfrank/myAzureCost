@@ -72,9 +72,9 @@
         }
     },
     "variables": {
-        "automationAccounts_aa_myazurecost_name": "aa-myazurecost",
-        "emailServices_mailsvc_myazurecost_name": "mailsvc-myazurecost",
-        "communicationServices_acs_myazurecost_bfrank_name": "[concat('cs-', parameters('automationAccounts_aa_myazurecost_name'), substring(uniqueString(subscription().subscriptionId), 0, 4))]",
+        "automationAccountName": "aa-myazurecost",
+        "emailServicesName": "mailsvc-myazurecost",
+        "communicationServicesName": "[concat('cs-', variables('automationAccountName'), substring(uniqueString(subscription().subscriptionId), 0, 4))]",
         "AA": {
             "runbooks": [
                 {
@@ -103,7 +103,7 @@
         {
             "type": "Microsoft.Automation/automationAccounts",
             "apiVersion": "2024-10-23",
-            "name": "[variables('automationAccounts_aa_myazurecost_name')]",
+            "name": "[variables('automationAccountName')]",
             "location": "[parameters('location')]",
             "identity": {
                 "type": "SystemAssigned"
@@ -122,7 +122,7 @@
         {
             "type": "Microsoft.Communication/emailServices",
             "apiVersion": "2026-03-18",
-            "name": "[variables('emailServices_mailsvc_myazurecost_name')]",
+            "name": "[variables('emailServicesName')]",
             "location": "global",
             "properties": {
                 "dataLocation": "[parameters('datalocation')]"
@@ -131,9 +131,9 @@
         {
             "type": "Microsoft.Automation/automationAccounts/connectionTypes",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccounts_aa_myazurecost_name'), '/Azure')]",
+            "name": "[concat(variables('automationAccountName'), '/Azure')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccounts_aa_myazurecost_name'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "properties": {
                 "isGlobal": true,
@@ -154,9 +154,9 @@
         {
             "type": "Microsoft.Automation/automationAccounts/connectionTypes",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccounts_aa_myazurecost_name'), '/AzureClassicCertificate')]",
+            "name": "[concat(variables('automationAccountName'), '/AzureClassicCertificate')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccounts_aa_myazurecost_name'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "properties": {
                 "isGlobal": true,
@@ -182,9 +182,9 @@
         {
             "type": "Microsoft.Automation/automationAccounts/connectionTypes",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccounts_aa_myazurecost_name'), '/AzureServicePrincipal')]",
+            "name": "[concat(variables('automationAccountName'), '/AzureServicePrincipal')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccounts_aa_myazurecost_name'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "properties": {
                 "isGlobal": true,
@@ -215,9 +215,9 @@
         {
             "type": "Microsoft.Automation/automationAccounts/jobs",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccounts_aa_myazurecost_name'), '/60754b1f-3eec-42fb-bcb6-34b679d52d70')]",
+            "name": "[concat(variables('automationAccountName'), '/60754b1f-3eec-42fb-bcb6-34b679d52d70')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccounts_aa_myazurecost_name'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "properties": {
                 "runbook": {
@@ -228,9 +228,9 @@
         {
             "type": "Microsoft.Automation/automationAccounts/jobSchedules",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccounts_aa_myazurecost_name'), '/5c478ab8-df7a-4493-9f42-cacef8744523')]",
+            "name": "[concat(variables('automationAccountName'), '/5c478ab8-df7a-4493-9f42-cacef8744523')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccounts_aa_myazurecost_name'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "properties": {
                 "runbook": {
@@ -244,10 +244,10 @@
         {
             "type": "Microsoft.Automation/automationAccounts/runbooks",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccounts_aa_myazurecost_name'), '/RunBk_MyAzureCost')]",
+            "name": "[concat(variables('automationAccountName'), '/RunBk_MyAzureCost')]",
             "location": "westeurope",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccounts_aa_myazurecost_name'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "properties": {
                 "runbookType": "PowerShell",
@@ -259,9 +259,9 @@
         {
             "type": "Microsoft.Automation/automationAccounts/schedules",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccounts_aa_myazurecost_name'), '/Daily-MyAzureCost')]",
+            "name": "[concat(variables('automationAccountName'), '/Daily-MyAzureCost')]",
             "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccounts_aa_myazurecost_name'))]"
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
             ],
             "properties": {
                 "description": "Daily AzureCost Report",
@@ -275,10 +275,10 @@
         {
             "type": "Microsoft.Communication/communicationServices",
             "apiVersion": "2026-03-18",
-            "name": "[variables('communicationServices_acs_myazurecost_bfrank_name')]",
+            "name": "[variables('communicationServicesName')]",
             "location": "global",
             "dependsOn": [
-                "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServices_mailsvc_myazurecost_name'), 'AzureManagedDomain')]"
+                "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServicesName'), 'AzureManagedDomain')]"
             ],
             "identity": {
                 "type": "None"
@@ -286,17 +286,17 @@
             "properties": {
                 "dataLocation": "[variables('datalocation')]",
                 "linkedDomains": [
-                    "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServices_mailsvc_myazurecost_name'), 'AzureManagedDomain')]"
+                    "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServicesName'), 'AzureManagedDomain')]"
                 ]
             }
         },
         {
             "type": "Microsoft.Communication/emailServices/domains",
             "apiVersion": "2026-03-18",
-            "name": "[concat(variables('emailServices_mailsvc_myazurecost_name'), '/AzureManagedDomain')]",
+            "name": "[concat(variables('emailServicesName'), '/AzureManagedDomain')]",
             "location": "global",
             "dependsOn": [
-                "[resourceId('Microsoft.Communication/emailServices', variables('emailServices_mailsvc_myazurecost_name'))]"
+                "[resourceId('Microsoft.Communication/emailServices', variables('emailServicesName'))]"
             ],
             "properties": {
                 "domainManagement": "AzureManaged",
@@ -306,10 +306,10 @@
         {
             "type": "microsoft.communication/emailservices/domains/senderusernames",
             "apiVersion": "2026-03-18",
-            "name": "[concat(variables('emailServices_mailsvc_myazurecost_name'), '/azuremanageddomain/donotreply')]",
+            "name": "[concat(variables('emailServicesName'), '/azuremanageddomain/donotreply')]",
             "dependsOn": [
-                "[resourceId('microsoft.communication/emailservices/domains', variables('emailServices_mailsvc_myazurecost_name'), 'azuremanageddomain')]",
-                "[resourceId('microsoft.communication/emailservices', variables('emailServices_mailsvc_myazurecost_name'))]"
+                "[resourceId('microsoft.communication/emailservices/domains', variables('emailServicesName'), 'azuremanageddomain')]",
+                "[resourceId('microsoft.communication/emailservices', variables('emailServicesName'))]"
             ],
             "properties": {
                 "username": "DoNotReply",
