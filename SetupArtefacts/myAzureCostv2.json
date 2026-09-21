@@ -60,9 +60,9 @@
             }
         },
         "RecipientEmail": {
-           "type": "string",
-           "defaultValue": "xyz@contoso.com",
-           "metadata": {
+            "type": "string",
+            "defaultValue": "xyz@contoso.com",
+            "metadata": {
                 "description": "Please provide the email address to which the consumption report will be sent. This email address will be used as the recipient of the daily consumption report."
             }
         },
@@ -93,18 +93,6 @@
                 "name": "RecipientEmail",
                 "description": "The email address the consumption is sent to",
                 "value": "[concat('\"',parameters('RecipientEmail'),'\"')]",
-                "isEncrypted": false
-            },
-            {
-                "name": "SenderAddress",
-                "description": "The sender's email server address",
-                "value": "[concat('\"', reference(resourceId('Microsoft.Communication/EmailServices', parameters('emailServicesName')), '2026-03-18').fromSenderDomain, '\"')]",                
-                "isEncrypted": false
-            },
-            {
-                "name": "AcsEndpoint",
-                "description": "The sender's email server secure ssl port to connect to",
-                "value": "[concat('\"', reference(resourceId('Microsoft.Communication/communicationServices', parameters('communicationServiceName')), '2023-04-01').hostName, '\"')]",
                 "isEncrypted": false
             },
             {
@@ -239,7 +227,6 @@
                 "count": "[length(variables('AA').runbooks)]"
             },
             "properties": {
-                "parameters": "[variables('AA').runbooks[copyIndex()].parameters]",
                 "runbook": {
                     "name": "[variables('AA').runbooks[copyIndex()].name]"
                 },
@@ -258,90 +245,6 @@
             }
         },
         {
-            "type": "Microsoft.Automation/automationAccounts/connectionTypes",
-            "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/Azure')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isGlobal": true,
-                "fieldDefinitions": {
-                    "AutomationCertificateName": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    },
-                    "SubscriptionID": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    }
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/connectionTypes",
-            "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/AzureClassicCertificate')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isGlobal": true,
-                "fieldDefinitions": {
-                    "SubscriptionName": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    },
-                    "SubscriptionId": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    },
-                    "CertificateAssetName": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    }
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Automation/automationAccounts/connectionTypes",
-            "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/AzureServicePrincipal')]",
-            "dependsOn": [
-                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
-            ],
-            "properties": {
-                "isGlobal": true,
-                "fieldDefinitions": {
-                    "ApplicationId": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    },
-                    "TenantId": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    },
-                    "CertificateThumbprint": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    },
-                    "SubscriptionId": {
-                        "isEncrypted": false,
-                        "isOptional": false,
-                        "type": "System.String"
-                    }
-                }
-            }
-        },
-        {
             "type": "Microsoft.Communication/communicationServices",
             "apiVersion": "2026-03-18",
             "name": "[variables('communicationServicesName')]",
@@ -357,6 +260,63 @@
                 "linkedDomains": [
                     "[resourceId('Microsoft.Communication/emailServices/domains', variables('emailServicesName'), 'AzureManagedDomain')]"
                 ]
+            }
+        },
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2022-04-01",
+            "name": "[guid(resourceId('Microsoft.Communication/communicationServices', variables('communicationServicesName')), variables('automationAccountName'), 'Contributor')]",
+            "scope": "[format('Microsoft.Communication/communicationServices/{0}', variables('communicationServicesName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[resourceId('Microsoft.Communication/communicationServices', variables('communicationServicesName'))]"
+            ],
+            "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                "principalId": "[reference(resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName')), '2024-10-23', 'Full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2022-09-01",
+            "name": "costManagementReaderRoleAssignment",
+            "location": "[parameters('location')]",
+            "subscriptionId": "[subscription().subscriptionId]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "inner"
+                },
+                "parameters": {
+                    "principalId": {
+                        "value": "[reference(resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName')), '2024-10-23', 'Full').identity.principalId]"
+                    }
+                },
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "principalId": {
+                            "type": "string"
+                        }
+                    },
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/roleAssignments",
+                            "apiVersion": "2022-04-01",
+                            "name": "[guid(subscription().id, parameters('principalId'), '72fafb9e-0641-4937-9268-a91bfd8191a3')]",
+                            "properties": {
+                                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '72fafb9e-0641-4937-9268-a91bfd8191a3')]",
+                                "principalId": "[parameters('principalId')]",
+                                "principalType": "ServicePrincipal"
+                            }
+                        }
+                    ]
+                }
             }
         },
         {
@@ -384,6 +344,46 @@
                 "username": "DoNotReply",
                 "displayName": "DoNotReply"
             }
+        },
+        {
+            "name": "[concat(variables('automationAccountName'), '/','SenderAddress')]",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2024-10-23",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[resourceId('microsoft.communication/emailservices/domains', variables('emailServicesName'), 'azuremanageddomain')]"
+            ],
+            "properties": {
+                "description": "The sender's email server address",
+                "value": "[concat('\"','DoNotReply@', reference(resourceId('Microsoft.Communication/emailServices/domains', variables('emailServicesName'), 'AzureManagedDomain'), '2026-03-18').fromSenderDomain, '\"')]",
+                "isEncrypted": false
+            }
+        },
+        {
+            "name": "[concat(variables('automationAccountName'), '/','AcsEndpoint')]",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2024-10-23",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[resourceId('microsoft.communication/emailservices', variables('emailServicesName'))]"
+            ],
+            "properties": {
+                "description": "The sender's email server secure ssl port to connect to",
+                "value": "[concat('\"', reference(resourceId('Microsoft.Communication/communicationServices', variables('communicationServicesName')), '2026-03-18').hostName, '\"')]",
+                "isEncrypted": false
+            }
         }
-    ]
+    ],
+    "outputs": {
+        "hostName": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Communication/communicationServices', variables('communicationServicesName')), '2026-03-18').hostName]"
+        },
+        "fromSenderDomain": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.Communication/emailServices/domains', variables('emailServicesName'), 'AzureManagedDomain'), '2026-03-18').fromSenderDomain]"
+        }
+    }
 }
