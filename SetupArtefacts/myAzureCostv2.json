@@ -109,9 +109,9 @@
                 "isEncrypted": false
             },
             {
-                "name": "MyAzureCostStorageAccountName",
+                "name": "AzureCostStorageAccountID",
                 "description": "The storage account used for storage of consumption .csv files",
-                "value": "[concat('\"',variables('myAzureCostStorageAccountName'),'\"')]",
+                "value": "[concat('\"',subscription().subscriptionId,'/resourceGroups/',resourceGroup().name,'/providers/Microsoft.Storage/storageAccounts/',variables('myAzureCostStorageAccountName'),'\"')]",
                 "isEncrypted": false
             }
         ],
@@ -320,6 +320,36 @@
             ],
             "properties": {
                 "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                "principalId": "[reference(resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName')), '2024-10-23', 'Full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+            }
+        },
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2022-04-01",
+            "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('myAzureCostStorageAccountName')), variables('automationAccountName'), 'StorageBlobDataContributor')]",
+            "scope": "[format('Microsoft.Storage/storageAccounts/{0}', variables('myAzureCostStorageAccountName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('myAzureCostStorageAccountName'))]"
+            ],
+            "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+                "principalId": "[reference(resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName')), '2024-10-23', 'Full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+            }
+        },
+        {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2022-04-01",
+            "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('myAzureCostStorageAccountName')), variables('automationAccountName'), 'StorageTableDataContributor')]",
+            "scope": "[format('Microsoft.Storage/storageAccounts/{0}', variables('myAzureCostStorageAccountName'))]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('myAzureCostStorageAccountName'))]"
+            ],
+            "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3')]",
                 "principalId": "[reference(resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName')), '2024-10-23', 'Full').identity.principalId]",
                 "principalType": "ServicePrincipal"
             }

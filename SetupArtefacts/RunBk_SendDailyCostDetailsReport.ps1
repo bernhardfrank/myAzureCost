@@ -18,15 +18,7 @@ Write-Output "Get consumption of $($ConsumptionDate.ToString("dd'/'MM'/'yyyy"))"
 [string]$SenderAddress = Get-AutomationVariable -Name "SenderAddress"
 [string]$RecipientEmail = Get-AutomationVariable -Name "RecipientEmail"
 [string]$CultureInfo = Get-AutomationVariable -Name "CultureInfo" 
-
-
-# Prevent inheriting any existing AzContext
-Disable-AzContextAutosave -Scope Process
-# Connect using the system-assigned managed identity
-$AzureContext = (Connect-AzAccount -Identity).Context
-# Set subscription context
-Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
-# Example: List all resource groups
+[string]$AzureCostStorageAccountID = Get-AutomationVariable -Name "AzureCostStorageAccountID" 
 
 try
 {
@@ -38,6 +30,25 @@ catch [System.Globalization.CultureNotFoundException]
     "$CultureInfo did not work ... using en-US instead."
     $destculture = [CultureInfo]::new("en-US")
 }
+
+function Get-MiToken {
+    # Holt ein Token der System-assigned Managed Identity ueber den
+    # Automation-Sandbox-Identity-Endpunkt.
+    param([Parameter(Mandatory = $true)][string]$Resource)
+    if (-not $env:IDENTITY_ENDPOINT -or -not $env:IDENTITY_HEADER) {
+        throw "IDENTITY_ENDPOINT nicht verfuegbar. Laeuft das Runbook in Azure Automation mit aktivierter Managed Identity?"
+    }
+    $uri = "{0}?resource={1}" -f $env:IDENTITY_ENDPOINT, [uri]::EscapeDataString($Resource)
+    $headers = @{
+        "X-IDENTITY-HEADER" = $env:IDENTITY_HEADER
+        "Metadata"          = "True"
+    }
+    $response = Invoke-RestMethod -Uri $uri -Method Get -Headers $headers -UseBasicParsing
+    return $response.access_token
+}
+
+$bearer_token = Get-MiToken -Resource "https://management.azure.com/"
+Write-Output "[OK] ARM-Token retrieved successfully for Microsoft.CostManagement API."
 
 #$ConsumptionDate = [System.DateTime]::Parse("2026-09-10", [CultureInfo]::new("en-us"))
 
@@ -59,21 +70,21 @@ $retryCount = 0
 
 do {
     try {
-         "Requesting Microsoft.CostManagement to generateCostDetailsReport: $ConsumptionDate.ToString("yyyy-MM-dd")"
+        Write-Output ("Requesting Microsoft.CostManagement to generateCostDetailsReport: $($ConsumptionDate.ToString('yyyy-MM-dd'))")
         $request = Invoke-WebRequest -Uri $uri -Method Post -Headers $headers -Body $json -UseBasicParsing
         $retryCount = $maxRetries  # Exit loop on success
     }
     catch {
         $retryCount++
         if ($retryCount -lt $maxRetries) {
-             "No valid response. Retrying in 30 seconds... (Attempt $retryCount/$maxRetries)"
+             Write-Output ("No valid response. Retrying in 30 seconds... (Attempt $retryCount/$maxRetries)")
             Start-Sleep -Seconds 30
         }
     }
 } while ($retryCount -lt $maxRetries)
 
 if (!($request.RawContent -match "Location: (\S*)" )) {
-     "No valid response after $maxRetries attempts. Exiting script."
+     Write-Output ("No valid response after $maxRetries attempts. Exiting script.")
     exit 1
 }
 
@@ -89,9 +100,9 @@ do {
         $jsonresponse = Invoke-WebRequest -Uri $locationuri -Method Get -Headers $headers -UseBasicParsing
         $bloburl = ($jsonresponse.Content | ConvertFrom-Json ).manifest.blobs.bloblink
         if ($bloburl) {
-             "Blob URL retrieved successfully: $bloburl"
+             Write-Output ("Blob URL retrieved successfully: $bloburl")
         } else {
-             "Blob URL not found in the response. Retrying..."
+             Write-Output ("Blob URL not found in the response. Retrying...")
             throw "Blob URL not found"
         }
         $retryCount = $maxRetries  # Exit loop on success
@@ -99,7 +110,7 @@ do {
     catch {
         $retryCount++
         if ($retryCount -lt $maxRetries) {
-             "No valid response. Retrying in 30 seconds... (Attempt $retryCount/$maxRetries)"
+             Write-Output ("No valid response. Retrying in 30 seconds... (Attempt $retryCount/$maxRetries)")
             Start-Sleep -Seconds 30
         }
     }
@@ -107,11 +118,167 @@ do {
 
 invoke-webrequest -Uri $bloburl -Method Get -UseBasicParsing -OutFile "$Env:temp\$reportName"
 $csv = import-csv "$Env:temp\$reportName" -Encoding UTF8
-#$CultureName = "de-DE"
-#$destculture = [System.Globalization.CultureInfo]::new($CultureName)
-$reportNameCulture = "$($ConsumptionDate.ToString('yyyy-MM-dd'))_$($CultureName)_report.csv"
+$reportNameCulture = "$($ConsumptionDate.ToString('yyyy-MM-dd'))_$($CultureInfo)_report.csv"
 $transformedUsagePath = "$Env:temp\$reportNameCulture"
+# invoiceId,previousInvoiceId,billingAccountId,billingAccountName,billingProfileId,billingProfileName,invoiceSectionId,invoiceSectionName,resellerName,resellerMpnId,costCenter,billingPeriodEndDate,billingPeriodStartDate,servicePeriodEndDate,servicePeriodStartDate,date,serviceFamily,productOrderId,productOrderName,consumedService,meterId,meterName,meterCategory,meterSubCategory,meterRegion,ProductId,ProductName,SubscriptionId,subscriptionName,publisherType,publisherId,publisherName,resourceGroupName,ResourceId,resourceLocation,location,effectiv
+<#
+invoiceId                    : 
+previousInvoiceId            : 
+billingAccountId             : e35a..........5f0
+billingAccountName           : Bernhard
+billingProfileId             : DD...........PGB
+billingProfileName           : Bernhard Frank
+invoiceSectionId             : 400a..........d60
+invoiceSectionName           : Bernhard Frank
+resellerName                 : 
+resellerMpnId                : 
+costCenter                   : 
+billingPeriodEndDate         : 
+billingPeriodStartDate       : 
+servicePeriodEndDate         : 10/01/2026
+servicePeriodStartDate       : 09/01/2026
+date                         : 09/10/2026
+serviceFamily                : Compute
+productOrderId               : 9e8e7ee3-d886-4f18-d3b5-410387f5924d
+productOrderName             : Azure plan
+consumedService              : microsoft.azurestackhci
+meterId                      : 79440372-a360-5b70-914f-f9e5adfcdf0c
+meterName                    : Standard Trial Fee
+meterCategory                : Azure Local
+meterSubCategory             : Azure Local
+meterRegion                  : Global
+ProductId                    : DZH318Z0MVPD000L
+ProductName                  : Azure Local - Standard
+SubscriptionId               : 80c67.........a2413
+subscriptionName             : AzurePayGo
+publisherType                : Microsoft
+publisherId                  : 
+publisherName                : Microsoft
+resourceGroupName            : rg-azlocal
+ResourceId                   : /subscriptions/80c673c.......13/resourcegroups/rg-azlocal/providers/microsoft.azurestackhci/clusters/hcimx
+resourceLocation             : westeurope
+location                     : EU West
+effectivePrice               : 0
+quantity                     : 32
+unitOfMeasure                : 1/Day
+chargeType                   : Usage
+billingCurrency              : EUR
+pricingCurrency              : USD
+costInBillingCurrency        : 0
+costInPricingCurrency        : 0
+costInUsd                    : 0
+paygCostInBillingCurrency    : 0
+paygCostInUsd                : 0
+exchangeRatePricingToBilling : 0.858663918942126052
+exchangeRateDate             : 09/01/2026
+isAzureCreditEligible        : True
+serviceInfo1                 : 
+serviceInfo2                 : 
+additionalInfo               : 
+tags                         : 
+PayGPrice                    : 0
+frequency                    : UsageBased
+term                         : 
+reservationId                : 
+reservationName              : 
+pricingModel                 : OnDemand
+unitPrice                    : 0
+costAllocationRuleName       : 
+benefitId                    : 
+benefitName                  : 
+provider                     : Azure
+#>
+
 $csv | Select-object @{N = 'date'; E = { "{0}" -f [System.DateTime]::Parse($_.date, [CultureInfo]::new("en-us")).ToString("d", $destculture) } }, serviceFamily, consumedService, meterName, meterCategory, meterSubCategory, meterRegion, ProductName, resourceGroupName, @{N = 'ResourceName'; E = { ($_.ResourceId.Split('/')) | select -Last 1 } }, @{N = 'quantity'; E = { $([decimal]$_.quantity).ToString($destculture) } }, @{N = 'paygCostInBillingCurrency'; E = { $([decimal]$_.paygCostInBillingCurrency).ToString($destculture) } }, billingCurrency, unitOfMeasure, @{N = 'unitPrice'; E = { $([decimal]$_.unitPrice).ToString($destculture) } }, @{N = 'exchangeRatePricingToBilling'; E = { $([decimal]$_.exchangeRatePricingToBilling).ToString($destculture) } }, meterId, tags | Export-Csv "$Env:temp\$reportNameCulture" -Encoding UTF8 -Delimiter ';' -NoTypeInformation
+
+$totalCost = $($csv | Measure-Object 'paygCostInBillingCurrency' -Sum).Sum
+$storageAccount = $AzureCostStorageAccountID | Split-Path -Leaf
+
+$storageAccount
+
+$resourceGroupName = $AzureCostStorageAccountID.Split('/')[3]
+
+$resourceGroupName
+
+$tablename = "myazurecosttable"
+#region get history data from table
+$sa = Get-AzStorageAccount -Name $storageAccount -ResourceGroupName $resourceGroupName        
+$ctx = $sa.Context
+$cloudTable = (Get-AzStorageTable -Name $tableName -Context $ctx).CloudTable
+
+$cloudTable
+Write-Output "[INFO] Get token for communication service and send email..."
+
+#update or new
+try {
+    $entry = Get-AzTableRow -Table $cloudTable -PartitionKey $ConsumptionDate.ToString('MMMM') -rowKey "$($ConsumptionDate.ToString('dd'))"
+    $entry.TotalCost = "{0:N7}" -f $totalCost
+    $entry.Year = $ConsumptionDate.Year
+    $entry | Update-AzTableRow -table $cloudTable
+}
+catch {
+    Add-AzTableRow -table $cloudTable -partitionKey $ConsumptionDate.ToString('MMMM') -rowKey "$($ConsumptionDate.ToString('dd'))" -property @{"TotalCost" = $("{0:N7}" -f $totalCost); "Year" = $ConsumptionDate.Year }
+}
+
+Get-AzTableRow -Table $cloudTable -PartitionKey $ConsumptionDate.ToString('MMMM') -rowKey "$($ConsumptionDate.ToString('dd'))"
+#Get last 7 days
+$last7Days = @()
+for ($date = $ConsumptionDate.AddDays(-6); $date -le $ConsumptionDate; $date += [System.timespan]::new(1, 0, 0, 0)) { 
+    $last7Days += Get-AzTableRow -Table $cloudTable -PartitionKey $date.ToString('MMMM') -rowKey "$($date.ToString('dd'))"
+}
+
+$last7Days | ft RowKey, PartitionKey, Year, TotalCost
+
+
+#region total costs per category
+$costPerCat = $csv | Group-Object -Property meterCategory | % { $Sum = ($_.Group | Measure-Object 'paygCostInBillingCurrency' -Sum).Sum; $myobj = [PSCustomObject]@{Name = "$($_.Name)"; Count = $($_.Group.Count); Sum = $Sum; Percentage = [Math]::Round([decimal]((100 * $Sum) / $totalCost), 2) }; $myobj }
+$costPerCatResult = @()
+$costPerCatResult += ($costPerCat | Where-Object Percentage -GT 3 | Sort-Object Percentage -Descending)#.GetEnumerator()
+
+$Sum = (($costPerCat | Where-Object Percentage -le 3) | Measure-Object Sum -Sum).Sum
+$costPerCatResult += [PSCustomObject]@{Name = "other"; Count = (($costPerCat | Where-Object Percentage -le 3) | Measure-Object Count -Sum).Sum; Sum = $Sum; Percentage = [Math]::Round([decimal]((100 * $Sum) / $totalCost), 2) }
+"========================"
+"Total costs per category"
+$costPerCatResult | Select-Object Name, Count, @{N = 'Sum'; E = { "{0:N2}" -f $_.Sum } }, @{N = 'Percentage'; E = { "{0:N2}%" -f $_.Percentage } } | ft -AutoSize
+#endregion 
+
+#region Top 10 consumers 
+"========================"
+"'paygCostInBillingCurrency'"
+$csv | Sort-Object 'paygCostInBillingCurrency' -Descending | Select-Object -First 10 | ft @{N = 'ResourceName'; E = { ($_.ResourceId.Split('/')) | select -Last 1 } }, 'paygCostInBillingCurrency', MeterName, meterCategory | ft -AutoSize
+#endregion 
+
+#region Costs per RG
+$costsPerRG = $csv | Group-Object -Property resourceGroupName | % { $Sum = ($_.Group | Measure-Object 'paygCostInBillingCurrency' -Sum).Sum; $myobj = [PSCustomObject]@{Name = "$($_.Name)"; Count = "$($_.Count)"; Sum = $Sum; Percentage = [Math]::Round([decimal]((100 * $Sum) / $totalCost), 2) }; $myobj }
+$costsPerRGResult = @()
+$costsPerRGResult += $costsPerRG | Where-Object Percentage -GT 3 | Sort-Object Percentage -Descending
+
+$Sum = (($costsPerRG | Where-Object Percentage -le 3) | Measure-Object Sum -Sum).Sum
+$costsPerRGResult += [PSCustomObject]@{Name = "other"; Count = (($costsPerRG | Where-Object Percentage -le 3) | Measure-Object Count -Sum).Sum; Sum = $Sum; Percentage = [Math]::Round([decimal]((100 * $Sum) / $totalCost), 2) }
+"========================"
+"Costs per RG"
+$costsPerRGResult | ft -AutoSize
+#endregion  
+
+#region Costs per Region
+$costsPerRegion = $csv | Group-Object -Property location | % { $Sum = ($_.Group | Measure-Object 'paygCostInBillingCurrency' -Sum).Sum; $myobj = [PSCustomObject]@{Name = "$($_.Name)"; Count = "$($_.Count)"; Sum = $Sum; Percentage = [Math]::Round([decimal]((100 * $Sum) / $totalCost), 2) }; $myobj }
+$costsPerRegionResult = @()
+$costsPerRegionResult += $costsPerRegion | Where-Object Percentage -GT 3 | Sort-Object Percentage -Descending
+
+$Sum = (($costsPerRegion | Where-Object Percentage -le 3) | Measure-Object Sum -Sum).Sum
+$costsPerRegionResult += [PSCustomObject]@{Name = "other"; Count = (($costsPerRegion | Where-Object Percentage -le 3) | Measure-Object Count -Sum).Sum; Sum = $Sum; Percentage = [Math]::Round([decimal]((100 * $Sum) / $totalCost), 2) }
+"========================"
+"Costs per Region"
+$costsPerRegionResult | ft -AutoSize
+#endregion
+
+#region Top 3 consumers per category
+$top3ConsumersPerCat = $csv | Group-Object -Property meterCategory | % { $_.Group | sort-object 'paygCostInBillingCurrency' -Descending | Select-Object -First 3 }
+"========================"
+"Top 3 consumers per category"
+$top3ConsumersPerCat | ft @{N = 'ResourceName'; E = { ($_.ResourceId.Split('/')) | select -Last 1 } }, 'paygCostInBillingCurrency', meterCategory -AutoSize
+#endregion 
+
 
 
 $htmlBody = @"
@@ -126,6 +293,25 @@ $htmlBody = @"
 <p>(cultureinfo: <b>$CultureInfo.</b>)</p>
 <p>hope you'll find it useful.</p>
 "@
+$htmlBody += "<p><h3>Costs History:</h3>"
+$htmlBody += "<table style=""width:auto; height: auto;""><tr><td><img src='cid:costHistoryChart'></td><td>"
+$htmlBody += $($last7Days | Select-Object @{N = 'Day'; E = { "{0}" -f $_.RowKey } }, @{N = 'Month'; E = { "{0}" -f $_.PartitionKey } }, Year, TotalCost | ConvertTo-Html -Property Day, Month, Year, TotalCost -Fragment)
+$htmlBody += "</td></tr></table></p>"
+$htmlBody += "<p><h3>Costs Per Category:</h3>"
+$htmlBody += "<table style=""width:auto; height: auto;""><tr><td><img src='cid:costsPerCatChart'></td><td>"
+$htmlBody += $($costPerCatResult | Select-Object Name, Count, @{N = 'Sum'; E = { "{0:N2}" -f $_.Sum } }, @{N = 'Percentage'; E = { "{0:N2}%" -f $_.Percentage } } | ConvertTo-Html -Property Name, Count, Sum, Percentage -Fragment)
+$htmlBody += "</td></tr></table></p>"
+$htmlBody += "<p><h3>Top 10 Consumers:</h3>"
+$htmlBody += $($csv | Sort-Object 'paygCostInBillingCurrency' -Descending | Select-Object -First 10 | ConvertTo-Html -Property @{L = 'ResourceName'; E = { $($_.ResourceName -replace "(.{20})(.*)", '$1...') } }, @{L = 'paygCostInBillingCurrency'; E = { $("{0:N2}" -f $($_.'paygCostInBillingCurrency')) } }, MeterName, MeterCategory -Fragment)
+$htmlBody += "</p>"
+$htmlBody += "<p><h3>Costs per RG:</h3>"
+$htmlBody += "<table style=""width:auto; height: auto;""><tr><td><img src='cid:costsPerRGChart'></td><td>"
+$htmlBody += $($costsPerRGResult | Select-Object Name, Count, @{N = 'Sum'; E = { "{0:N2}" -f $_.Sum } }, @{N = 'Percentage'; E = { "{0:N2}%" -f $_.Percentage } } | ConvertTo-Html -Property Name, Count, Sum, Percentage -Fragment)
+$htmlBody += "</td></tr></table></p>"
+$htmlBody += "<p><h3>Costs Per Region:</h3>"
+$htmlBody += "<table style=""width:auto; height: auto;""><tr><td><img src='cid:costsPerRegionChart'></td><td>"
+$htmlBody += $($costsPerRegionResult | Select-Object Name, Count, @{N = 'Sum'; E = { "{0:N2}" -f $_.Sum } }, @{N = 'Percentage'; E = { "{0:N2}%" -f $_.Percentage } } | ConvertTo-Html -Property Name, Count, Sum, Percentage -Fragment)
+$htmlBody += "</td></tr></table></p>"
 $htmlBody += "</body></html>"
 
 
@@ -137,7 +323,7 @@ $htmlBody += "</body></html>"
 # =========================================================================
 $ErrorActionPreference = "Stop"
 
-Write-Output "[INFO] Hole Token fuer ACS und versende E-Mail..."
+Write-Output "[INFO] Get token for communication service and send email..."
 $acsToken = Get-MiToken -Resource "https://communication.azure.com/"
 
 $csvBytes = [byte[]](0xEF, 0xBB, 0xBF) + [System.Text.Encoding]::UTF8.GetBytes($(get-content $transformedUsagePath | Out-String))
@@ -176,4 +362,4 @@ $sendHeaders
 $sendResult = Invoke-RestMethod -Uri $sendUri -Method Post -Headers $sendHeaders `
     -Body ($mailBody | ConvertTo-Json -Depth 10) -UseBasicParsing
 
-Write-Output ("[OK]   E-Mail in Versandwarteschlange. Operation-Id: {0}, Status: {1}" -f $sendResult.id, $sendResult.status)
+Write-Output ("[OK]  Email queued. Operation-Id: {0}, Status: {1}" -f $sendResult.id, $sendResult.status)
