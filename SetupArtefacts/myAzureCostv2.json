@@ -80,6 +80,7 @@
     },
     "variables": {
         "automationAccountName": "[concat('aa-myazurecost', substring(guid(resourceGroup().id), 0, 4))]",
+        "myAzureCostStorageAccountName": "[concat('samyazurecost',substring(uniqueString(resourceGroup().id),0,4))]",
         "emailServicesName": "mailsvc-myazurecost",
         "communicationServicesName": "[concat('cs-', variables('automationAccountName'), substring(uniqueString(subscription().subscriptionId), 0, 4))]",
         "AAVariables": [
@@ -106,6 +107,12 @@
                 "description": "The number of days to look back for consumption data",
                 "value": "7",
                 "isEncrypted": false
+            },
+            {
+                "name": "MyAzureCostStorageAccountName",
+                "description": "The storage account used for storage of consumption .csv files",
+                "value": "[concat('\"',variables('myAzureCostStorageAccountName'),'\"')]",
+                "isEncrypted": false
             }
         ],
         "AA": {
@@ -113,6 +120,14 @@
                 {
                     "name": "RunBk_MyAzureCost",
                     "url": "[concat(parameters('_artifactsLocation'), 'RunBk_MyAzureCost.ps1', parameters('_artifactsLocationSasToken'))]",
+                    "version": "1.0.0.0",
+                    "type": "PowerShell",
+                    "description": "Runbook to gather azure consumption of the day.",
+                    "linkedToSchedule": "daily"
+                },
+                {
+                    "name": "RunBk_SendDailyCostDetailsReport",
+                    "url": "[concat(parameters('_artifactsLocation'), 'RunBk_SendDailyCostDetailsReport.ps1', parameters('_artifactsLocationSasToken'))]",
                     "version": "1.0.0.0",
                     "type": "PowerShell",
                     "description": "Runbook to gather azure consumption of the day.",
@@ -132,6 +147,33 @@
         }
     },
     "resources": [
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2026-06-01",
+            "name": "[variables('myAzureCostStorageAccountName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "accessTier": "Cold"
+            },
+            "resources": [
+                {
+                    "name": "myazurecostcontainer",
+                    "type": "blobServices/containers",
+                    "apiVersion": "2026-06-01"
+                },
+                {
+                    "name": "myazurecosttable",
+                    "type": "Microsoft.Storage/storageAccounts/tableServices",
+                    "apiVersion": "2026-06-01",
+                    "properties": {}
+                }
+            ]
+        },
         {
             "type": "Microsoft.Automation/automationAccounts",
             "apiVersion": "2024-10-23",
