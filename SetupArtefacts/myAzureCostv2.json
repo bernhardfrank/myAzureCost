@@ -129,7 +129,7 @@
                     "name": "RunBk_SendDailyCostDetailsReport",
                     "url": "[concat(parameters('_artifactsLocation'), 'RunBk_SendDailyCostDetailsReport.ps1', parameters('_artifactsLocationSasToken'))]",
                     "version": "1.0.0.0",
-                    "type": "PowerShell",
+                    "type": "PowerShell72",
                     "description": "Runbook to gather azure consumption of the day.",
                     "linkedToSchedule": "daily"
                 }
@@ -234,7 +234,7 @@
         {
             "type": "Microsoft.Automation/automationAccounts/runbooks",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/RunBk_MyAzureCost')]",
+            "name": "[concat(variables('automationAccountName'), '/', variables('AA').runbooks[copyIndex()].Name)]",
             "location": "[parameters('location')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
