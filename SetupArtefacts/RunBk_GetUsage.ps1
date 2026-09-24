@@ -85,7 +85,8 @@ $result += foreach ($item in $data) {
 }
 $result
 
-$exportPath = "$Env:temp\$($ConsumptionDate.ToString("yyyyMMdd"))Consumption.csv"
+$reportName = "AzureUsage$($ConsumptionDate.ToString("yyyy-MM-dd"))Consumption.csv"
+$exportPath = "$Env:temp\$reportName"
 $result | Export-Csv "$exportPath" -Encoding UTF8 -Delimiter ';' -NoTypeInformation
 
 get-content $exportPath | Out-String | Write-Output
@@ -132,7 +133,7 @@ $mailBody = @{
     }
     attachments   = @(
         @{
-            name            = "$($ConsumptionDate.ToString("yyyyMMdd"))Consumption.csv"
+            name            = $reportName
             contentType     = "text/csv"
             contentInBase64 = [Convert]::ToBase64String($csvBytes)
         }
