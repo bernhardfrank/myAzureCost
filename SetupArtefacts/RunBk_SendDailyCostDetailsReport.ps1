@@ -56,25 +56,24 @@ $json = $Body | ConvertTo-Json -Depth 10
 $request = $null
 $maxRetries = 3
 $retryCount = 0
-$Matches.Clear()
 
 do {
     try {
-        Write-Host "Requesting Microsoft.CostManagement to generateCostDetailsReport: $ConsumptionDate.ToString("yyyy-MM-dd")"
+         "Requesting Microsoft.CostManagement to generateCostDetailsReport: $ConsumptionDate.ToString("yyyy-MM-dd")"
         $request = Invoke-WebRequest -Uri $uri -Method Post -Headers $headers -Body $json -UseBasicParsing
         $retryCount = $maxRetries  # Exit loop on success
     }
     catch {
         $retryCount++
         if ($retryCount -lt $maxRetries) {
-            Write-Host "No valid response. Retrying in 30 seconds... (Attempt $retryCount/$maxRetries)"
+             "No valid response. Retrying in 30 seconds... (Attempt $retryCount/$maxRetries)"
             Start-Sleep -Seconds 30
         }
     }
 } while ($retryCount -lt $maxRetries)
 
 if (!($request.RawContent -match "Location: (\S*)" )) {
-    Write-Host "No valid response after $maxRetries attempts. Exiting script."
+     "No valid response after $maxRetries attempts. Exiting script."
     exit 1
 }
 
@@ -90,9 +89,9 @@ do {
         $jsonresponse = Invoke-WebRequest -Uri $locationuri -Method Get -Headers $headers -UseBasicParsing
         $bloburl = ($jsonresponse.Content | ConvertFrom-Json ).manifest.blobs.bloblink
         if ($bloburl) {
-            Write-Host "Blob URL retrieved successfully: $bloburl"
+             "Blob URL retrieved successfully: $bloburl"
         } else {
-            Write-Host "Blob URL not found in the response. Retrying..."
+             "Blob URL not found in the response. Retrying..."
             throw "Blob URL not found"
         }
         $retryCount = $maxRetries  # Exit loop on success
@@ -100,7 +99,7 @@ do {
     catch {
         $retryCount++
         if ($retryCount -lt $maxRetries) {
-            Write-Host "No valid response. Retrying in 30 seconds... (Attempt $retryCount/$maxRetries)"
+             "No valid response. Retrying in 30 seconds... (Attempt $retryCount/$maxRetries)"
             Start-Sleep -Seconds 30
         }
     }

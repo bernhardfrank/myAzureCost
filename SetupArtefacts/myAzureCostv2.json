@@ -162,15 +162,20 @@
             },
             "resources": [
                 {
-                    "name": "myazurecostcontainer",
+                    "name": "default/myazurecostcontainer",
                     "type": "blobServices/containers",
-                    "apiVersion": "2026-06-01"
+                    "apiVersion": "2026-06-01",
+                    "dependsOn": [
+                        "[variables('myAzureCostStorageAccountName')]"
+                    ]
                 },
                 {
-                    "name": "myazurecosttable",
-                    "type": "Microsoft.Storage/storageAccounts/tableServices",
+                    "name": "default/myazurecosttable",
+                    "type": "tableServices/tables",
                     "apiVersion": "2026-06-01",
-                    "properties": {}
+                    "dependsOn": [
+                        "[variables('myAzureCostStorageAccountName')]"
+                    ]
                 }
             ]
         },
