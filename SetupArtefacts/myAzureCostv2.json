@@ -118,14 +118,6 @@
         "AA": {
             "runbooks": [
                 {
-                    "name": "RunBk_MyAzureCost",
-                    "url": "[concat(parameters('_artifactsLocation'), 'RunBk_MyAzureCost.ps1', parameters('_artifactsLocationSasToken'))]",
-                    "version": "1.0.0.0",
-                    "type": "PowerShell",
-                    "description": "Runbook to gather azure consumption of the day.",
-                    "linkedToSchedule": "daily"
-                },
-                {
                     "name": "RunBk_SendDailyCostDetailsReport",
                     "url": "[concat(parameters('_artifactsLocation'), 'RunBk_SendDailyCostDetailsReport.ps1', parameters('_artifactsLocationSasToken'))]",
                     "version": "1.0.0.0",
@@ -239,7 +231,7 @@
         {
             "type": "Microsoft.Automation/automationAccounts/runbooks",
             "apiVersion": "2024-10-23",
-            "name": "[concat(variables('automationAccountName'), '/', variables('AA').runbooks[copyIndex()].Name)]",
+            "name": "[concat(variables('automationAccountName'), '/', variables('AA').runbooks[copyIndex()].name)]",
             "location": "[parameters('location')]",
             "dependsOn": [
                 "[resourceId('Microsoft.Automation/automationAccounts', variables('automationAccountName'))]"
