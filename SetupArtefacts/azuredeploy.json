@@ -343,7 +343,7 @@
         {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2022-09-01",
-            "name": "costManagementReaderRoleAssignment",
+            "name": "[concat( 'costManagementReaderRoleAssignment',substring(guid(resourceGroup().id), 0, 4))]",
             "location": "[parameters('location')]",
             "subscriptionId": "[subscription().subscriptionId]",
             "dependsOn": [
