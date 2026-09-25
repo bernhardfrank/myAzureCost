@@ -6,14 +6,7 @@
             "type": "string",
             "defaultValue": "https://raw.githubusercontent.com/bernhardfrank/myAzureCost/masterV2/SetupArtefacts/",
             "metadata": {
-                "description": "URI to artifacts location"
-            }
-        },
-        "_artifactsLocationSasToken": {
-            "type": "securestring",
-            "defaultValue": "",
-            "metadata": {
-                "description": "The sasToken required to access _artifactsLocation.  When the template is deployed using the accompanying scripts, a sasToken will be automatically generated"
+                "description": "URI to artifacts location - do not change."
             }
         },
         "location": {
@@ -113,7 +106,7 @@
             "runbooks": [
                 {
                     "name": "RunBk_SendDailyCostDetailsReport",
-                    "url": "[concat(parameters('_artifactsLocation'), 'RunBk_SendDailyCostDetailsReport.ps1', parameters('_artifactsLocationSasToken'))]",
+                    "url": "[concat(parameters('_artifactsLocation'), 'RunBk_SendDailyCostDetailsReport.ps1')]",
                     "version": "1.0.0.0",
                     "type": "PowerShell72",
                     "description": "Runbook to gather azure consumption of the day.",
