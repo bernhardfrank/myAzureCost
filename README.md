@@ -8,7 +8,11 @@ The solution uses:
 - an azure automation account with a PowerShell 7.2 runbook to process the data.
 - a system managed identity with minimum rights required (Cost Management Reader on subscription, Contributor on communicationServices, Storage Table Data Contributor + Storage Blob Data Contributor on storageaccount)
 
+>Be careful not to run too many cost reports in a row (e.g. 3 in 1 minute) as Microsoft.CostManagement API will be throttled. You may need to come back 30mins to rerun. However one per day should be fine.
+
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fbernhardfrank%2FmyAzureCost%2FmasterV2%2FSetupArtefacts%2Fazuredeploy.json)  
+
+A **special thanks to [Alexander Ortha ](https://ortha-itsolutions.de/)** for the inspiration and pre-work to get this solution up and running again.
 
 # Result & Screenshots  
   
