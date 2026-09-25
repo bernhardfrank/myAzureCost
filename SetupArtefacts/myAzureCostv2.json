@@ -103,15 +103,9 @@
                 "isEncrypted": false
             },
             {
-                "name": "LookbackDays",
-                "description": "The number of days to look back for consumption data",
-                "value": "7",
-                "isEncrypted": false
-            },
-            {
-                "name": "AzureCostStorageAccountID",
+                "name": "AzureCostStorageAccountName",
                 "description": "The storage account used for storage of consumption .csv files",
-                "value": "[concat('\"',subscription().subscriptionId,'/resourceGroups/',resourceGroup().name,'/providers/Microsoft.Storage/storageAccounts/',variables('myAzureCostStorageAccountName'),'\"')]",
+                "value": "[concat('\"',variables('myAzureCostStorageAccountName'),'\"')]",
                 "isEncrypted": false
             }
         ],

@@ -21,7 +21,7 @@ Write-Output "Get consumption of $($ConsumptionDate.ToString("dd'/'MM'/'yyyy"))"
 [string]$SenderAddress = Get-AutomationVariable -Name "SenderAddress"
 [string]$RecipientEmail = Get-AutomationVariable -Name "RecipientEmail"
 [string]$CultureInfo = Get-AutomationVariable -Name "CultureInfo"
-[string]$AzureCostStorageAccountID = Get-AutomationVariable -Name "AzureCostStorageAccountID"
+[string]$AzureCostStorageAccountName = Get-AutomationVariable -Name "AzureCostStorageAccountName"
 
 try {
     $destculture = [CultureInfo]::new($CultureInfo)
@@ -582,10 +582,9 @@ if ([string]::IsNullOrWhiteSpace($currency)) { $currency = "EUR" }
 #endregion
 
 #region Cost history table (Azure Storage Table)
-$storageAccount = $AzureCostStorageAccountID | Split-Path -Leaf
 $tableName = "myazurecosttable"
-$tableEndpoint = "https://$storageAccount.table.core.windows.net"
-Write-Output "Storage account: $storageAccount"
+$tableEndpoint = "https://$AzureCostStorageAccountName.table.core.windows.net"
+Write-Output "Storage account: $AzureCostStorageAccountName"
 
 Write-Output "[INFO] Writing today's cost to table..."
 Set-CostTableEntity -TableEndpoint $tableEndpoint -TableName $tableName `
